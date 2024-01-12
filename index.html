@@ -1,0 +1,635 @@
+<html><head><meta charset="utf-8">
+    <head>
+        <style>
+            .black-box {
+            background-color: black;
+            color: white;
+            padding: 10px;
+            width: 99%;
+            overflow: hidden;
+            position: relative;
+          }
+          .flashing-bar {
+            width: 10px;
+            height: 15px;
+            background-color: white;
+            position: absolute;
+            animation: flashing 1.5s infinite;
+          }
+        
+          @keyframes flashing {
+            0%, 49% {
+              opacity: 0;
+            }
+            50%, 100% {
+              opacity: 1;
+            }
+          }
+          </style>
+    </head>
+<body>
+    <div class="black-box"><center>
+        <div class="flashing-bar"></div> <a href="javascript:history.back()" style="background-color:white;">🡨Go Back</a> &nbsp;&nbsp; <i>ระบบเอาชนะตลาด 0.4%</i>
+        </center></div>
+</div>
+<br><br>
+<center>
+<table style="border-collapse: collapse;">
+  <td><div id="tvchart"></div></td>
+  <td>
+</td></table>
+<hr>
+<b>ตาวิเศษ</b>
+<hr>
+<table border="0" width="70%" style="border-collapse: collapse;">
+ 
+<td style="padding: 0; margin: 0;">
+<td><div id="Bullish-Reversal-Bar"></div></td>
+<td><div id="Key-Reversal-Bar-pattern"></div></td>
+<td><div id="Bullish-Exhaustion-Bar"></div></td>
+<td><div id="Bullish-Pin"></div></td>
+<td><div id="Bullish-Two-Bar-Reversal"></div></td>
+<td><div id="Bullish-Three-Bar-Reversal"></div></td>
+<td><div id="Bullish-Three-Bar-Pullback"></div></td>
+<td><div id="Inside-Bar"></div></td>
+<td><div id="White-Marubozu"></div></td>
+<td><div id="Bullish-Harami"></div></td>
+<td><div id="Bullish-Engulfing"></div></td>
+<td><div id="Piercing-Line"></div></td>
+<td><div id="Hammer-pattern"></div></td>
+<td><div id="Inverted-Hammer"></div></td>
+<td><div id="Morning-Star"></div></td>
+<td><div id="Three-White"></div></td>
+<td><div id="Bullish-Head-and-Shoulders"></div></td>
+<td><div id="Double-Bottom"></div></td>
+<td><div id="Triple-Bottom"></div></td>
+<td><div id="Rounding-Bottom"></div></td>
+<td><div id="Bullish-Rectangle"></div></td>
+<td><div id="Bullish-Wedge"></div></td>
+<td><div id="Bullish-Flag"></div></td>
+<td><div id="Cup-and-Handle"></div></td>
+<td><div id="Bullish-Pin"></div></td>
+<td><div id="White-Marubozu"></div></td>
+<td><div id="Tweezer-Bottom"></div></td>
+<td><div id="Three-Outside"></div></td>
+<td><div id="On-Neck"></div></td>
+<td><div id="Bullish-Spinning"></div></td>
+<td><div id="Tri-Star"></div></td>
+</td>
+</table></div></center>
+
+<script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/2.3.0/socket.io.js"></script>
+  <script src="https://unpkg.com/lightweight-charts/dist/lightweight-charts.standalone.production.js"></script>
+  
+  <script type="text/javascript">
+    const chartProperties = {
+      width: 770,
+      height: 350,
+      layout: {
+        backgroundColor: '#000000',
+        textColor: '#FFFFFF',
+      },
+      timeScale: {
+        timeVisible: true,
+        secondsVisible: false,
+      },
+      layout: {
+        textColor: '#000000',
+      },
+    };
+    const domElement = document.getElementById('tvchart');
+    const chartContainer = document.createElement('div');
+    chartContainer.id = 'tvchart-container';
+    domElement.appendChild(chartContainer);
+    const overlay = document.createElement('div');
+    overlay.id = 'overlay';
+    chartContainer.appendChild(overlay);
+    const chart = LightweightCharts.createChart(chartContainer, chartProperties);
+    const candleSeries = chart.addCandlestickSeries();
+    const addedPriceLines = [];
+
+    function fetchDataAndRefreshChart() {
+      fetch(`https://api.binance.com/api/v3/klines?symbol=BTCUSDT&interval=15m&limit=1000`)
+        .then(res => res.json())
+        .then(data => {
+          const cdata = data.map(d => {
+            return { time: d[0] / 1000, open: parseFloat(d[1]), high: parseFloat(d[2]), low: parseFloat(d[3]), close: parseFloat(d[4]) };
+          });
+          candleSeries.setData(cdata);
+          const currentPrice = cdata[cdata.length - 1].close;
+          const newPrice = currentPrice * 1.004;
+  
+      // Clear existing price lines
+      addedPriceLines.forEach(line => {
+        candleSeries.removePriceLine(line);
+      });
+      addedPriceLines.length = 0;
+
+      const priceLines = [
+  { price: newPrice, color: 'black', lineWidth: 4, lineStyle: 4, axisLabelVisible: false },
+];
+
+for (const priceLine of priceLines) {
+        addedPriceLines.push(candleSeries.createPriceLine(priceLine));
+      }
+// Detect bullish candlestick patterns
+detectBullishPatterns(cdata);
+        })
+        .catch(err => console.error(err));
+    }
+  
+  
+    function isHammer(candle) {
+    return candle.close > candle.open &&
+        (candle.close - candle.low) / (0.001 + candle.high - candle.low) > 0.6 &&
+        (candle.open - candle.low) / (0.001 + candle.high - candle.low) > 0.6;
+}
+function isInvertedHammer(candle) {
+    return candle.open > candle.close &&
+        (candle.open - candle.low) / (0.001 + candle.high - candle.low) > 0.6 &&
+        (candle.close - candle.low) / (0.001 + candle.high - candle.low) > 0.6;
+}
+function isBullishEngulfing(currentCandle, previousCandle) {
+    return previousCandle.close > previousCandle.open &&
+        currentCandle.open > previousCandle.close &&
+        currentCandle.close > currentCandle.open &&
+        currentCandle.close > previousCandle.open;
+}
+function isPiercingLine(currentCandle, previousCandle) {
+    const midPoint = (previousCandle.close + previousCandle.open) / 2;
+    return previousCandle.close < previousCandle.open &&
+        currentCandle.open < previousCandle.close &&
+        currentCandle.close > midPoint &&
+        currentCandle.close < previousCandle.open;
+}
+function isMorningStar(currentCandle, previousCandle1, previousCandle2) {
+    return previousCandle2.close < previousCandle2.open &&
+        previousCandle1.close > previousCandle1.open &&
+        currentCandle.open < previousCandle1.close &&
+        currentCandle.close > previousCandle2.open &&
+        currentCandle.close > previousCandle1.close &&
+        currentCandle.close < previousCandle1.open;
+}
+function isThreeWhiteSoldiers(candles) {
+    return candles.length === 3 &&
+        candles[0].close > candles[0].open &&
+        candles[1].close > candles[1].open &&
+        candles[2].close > candles[2].open &&
+        candles[0].close > candles[1].close &&
+        candles[1].close > candles[2].close &&
+        candles[0].open < candles[1].open &&
+        candles[1].open < candles[2].open;
+}
+function isBullishPinBar(candle) {
+    return candle.close > candle.open &&
+        (candle.high - candle.close) / (0.001 + candle.high - candle.low) > 0.6 &&
+        (candle.high - candle.open) / (0.001 + candle.high - candle.low) > 0.6;
+}
+function isBullishHarami(currentCandle, previousCandle) {
+    return previousCandle.close > previousCandle.open &&
+        currentCandle.open > previousCandle.close &&
+        currentCandle.close > currentCandle.open &&
+        currentCandle.close < previousCandle.open &&
+        currentCandle.open < previousCandle.close;
+}
+function isWhiteMarubozu(candle) {
+    return candle.close > candle.open &&
+        (candle.close - candle.low) / (0.001 + candle.high - candle.low) > 0.9;
+}
+function isTweezerBottom(candles) {
+    return candles.length === 2 &&
+        candles[0].close < candles[0].open &&
+        candles[1].close < candles[1].open &&
+        candles[0].low === candles[1].low;
+}
+function isThreeOutsideUp(candles) {
+    return candles.length === 3 &&
+        candles[2].close > candles[2].open &&
+        candles[1].close > candles[1].open &&
+        candles[0].close < candles[0].open &&
+        candles[2].close > candles[1].close &&
+        candles[2].open < candles[1].open &&
+        candles[0].close < candles[1].close &&
+        candles[0].open > candles[1].open;
+}
+function isOnNeckPattern(candles) {
+    return candles.length === 2 &&
+        candles[0].close > candles[0].open &&
+        candles[1].close > candles[1].open &&
+        candles[1].close === candles[0].close &&
+        candles[1].open > candles[0].open &&
+        candles[1].close < candles[0].close;
+}
+function isBullishSpinningTop(candle) {
+    return (candle.close - candle.open) / (0.001 + candle.high - candle.low) > 0.7 &&
+        (candle.open - candle.low) / (0.001 + candle.high - candle.low) > 0.7;
+}
+function isTriStar(candles) {
+    return candles.length === 3 &&
+        candles[0].close === candles[0].open &&
+        candles[1].close === candles[1].open &&
+        candles[2].close === candles[2].open;
+}
+function isBullishReversalBar(candle) {
+    return candle.close > candle.open &&
+        (candle.close - candle.low) / (0.001 + candle.high - candle.low) > 0.6 &&
+        (candle.open - candle.low) / (0.001 + candle.high - candle.low) > 0.6;
+}
+function isKeyReversalBar(currentCandle, previousCandle) {
+    return (
+        currentCandle.high > previousCandle.high &&
+        currentCandle.low < previousCandle.low &&
+        currentCandle.close < previousCandle.close &&
+        currentCandle.open > previousCandle.open
+    );
+}
+function isBullishExhaustionBar(candle, previousCandle) {
+    return (
+        previousCandle.close > previousCandle.open &&
+        candle.open > previousCandle.close &&
+        candle.close > candle.open &&
+        candle.close > previousCandle.open &&
+        candle.close > previousCandle.close
+    );
+}
+function isBullishTwoBarReversal(currentCandle, previousCandle) {
+    return (
+        currentCandle.close > currentCandle.open &&
+        previousCandle.close > previousCandle.open &&
+        currentCandle.open > previousCandle.close &&
+        currentCandle.close > previousCandle.open &&
+        currentCandle.close > previousCandle.close
+    );
+}
+function isBullishThreeBarReversal(currentCandle, previousCandle, twoCandlesAgo) {
+    return (
+        currentCandle.close > currentCandle.open &&
+        previousCandle.close > previousCandle.open &&
+        twoCandlesAgo.close > twoCandlesAgo.open &&
+        currentCandle.open > previousCandle.close &&
+        currentCandle.close > twoCandlesAgo.open &&
+        currentCandle.close > previousCandle.open &&
+        currentCandle.close > twoCandlesAgo.close
+    );
+}
+function isBullishThreeBarPullback(currentCandle, previousCandle, twoCandlesAgo) {
+    return (
+        currentCandle.close > currentCandle.open &&
+        previousCandle.close > previousCandle.open &&
+        twoCandlesAgo.close > twoCandlesAgo.open &&
+        currentCandle.open > previousCandle.close &&
+        currentCandle.close < previousCandle.open &&
+        previousCandle.close < twoCandlesAgo.open &&
+        previousCandle.open < twoCandlesAgo.close &&
+        currentCandle.close > twoCandlesAgo.open &&
+        currentCandle.close > twoCandlesAgo.close
+    );
+}
+function isInsideBar(currentCandle, previousCandle) {
+    return (
+        currentCandle.high < previousCandle.high &&
+        currentCandle.low > previousCandle.low
+    );
+}
+function isBullishHeadAndShoulders(data) {
+    if (data.length < 5) {
+        return false;
+    }
+    const swingHighs = [];
+    const swingLows = [];
+    for (let i = 1; i < data.length - 1; i++) {
+        if (
+            data[i].high > data[i - 1].high &&
+            data[i].high > data[i + 1].high
+        ) {
+            swingHighs.push(data[i]);
+        } else if (
+            data[i].low < data[i - 1].low &&
+            data[i].low < data[i + 1].low
+        ) {
+            swingLows.push(data[i]);
+        }
+    }
+    if (swingLows.length < 3 || swingHighs.length < 2) {
+        return false;
+    }
+    const middleSwingLow = swingLows.reduce((lowest, low) =>
+        low.low < lowest.low ? low : lowest
+    );
+    const leftSwingHigh = swingHighs.find(
+        (high) => high.time < middleSwingLow.time
+    );
+    const rightSwingHigh = swingHighs.find(
+        (high) => high.time > middleSwingLow.time
+    );
+    if (leftSwingHigh.close > rightSwingHigh.close) {
+        return false;
+    }
+    const lastCandle = data[data.length - 1];
+    return (
+        lastCandle.low > middleSwingLow.low &&
+        lastCandle.low > leftSwingHigh.low &&
+        lastCandle.low > rightSwingHigh.low
+    );
+}
+function isDoubleBottom(data) {
+    if (data.length < 4) {
+        return false;
+    }
+    const swingHighs = [];
+    const swingLows = [];
+    for (let i = 1; i < data.length - 1; i++) {
+        if (
+            data[i].high > data[i - 1].high &&
+            data[i].high > data[i + 1].high
+        ) {
+            swingHighs.push(data[i]);
+        } else if (
+            data[i].low < data[i - 1].low &&
+            data[i].low < data[i + 1].low
+        ) {
+            swingLows.push(data[i]);
+        }
+    }
+    if (swingLows.length < 2 || swingHighs.length < 1) {
+        return false;
+    }
+    const leftSwingLow = swingLows[0];
+    const middleSwingHigh = swingHighs[0];
+    const rightSwingLow = swingLows[1];
+    const lastCandle = data[data.length - 1];
+    return (
+        lastCandle.low > leftSwingLow.low &&
+        lastCandle.low > rightSwingLow.low &&
+        lastCandle.high < middleSwingHigh.high
+    );
+}
+function isTripleBottom(data) {
+    if (data.length < 5) {
+        return false;
+    }
+    const swingHighs = [];
+    const swingLows = [];
+    for (let i = 1; i < data.length - 1; i++) {
+        if (
+            data[i].high > data[i - 1].high &&
+            data[i].high > data[i + 1].high
+        ) {
+            swingHighs.push(data[i]);
+        } else if (
+            data[i].low < data[i - 1].low &&
+            data[i].low < data[i + 1].low
+        ) {
+            swingLows.push(data[i]);
+        }
+    }
+    if (swingLows.length < 3 || swingHighs.length < 2) {
+        return false;
+    }
+    const leftSwingLow = swingLows[0];
+    const middleSwingLow = swingLows[1];
+    const rightSwingLow = swingLows[2];
+    const lastCandle = data[data.length - 1];
+    return (
+        lastCandle.low > leftSwingLow.low &&
+        lastCandle.low > middleSwingLow.low &&
+        lastCandle.low > rightSwingLow.low
+    );
+}
+function isRoundingBottom(data) {
+    if (data.length < 3) {
+        return false;
+    }
+    const averageClose = data.reduce((sum, candle) => sum + candle.close, 0) / data.length;
+    const lastCandle = data[data.length - 1];
+    return lastCandle.close > averageClose;
+}
+function isBullishRectangle(data) {
+    if (data.length < 4) {
+        return false;
+    }
+    const potentialSupport = data[data.length - 1].low;
+    const potentialResistance = data[data.length - 1].high;
+    const lastCandle = data[data.length - 1];
+    const previousCandle = data[data.length - 2];
+    const twoCandlesAgo = data[data.length - 3];
+    const threeCandlesAgo = data[data.length - 4];
+    const isWithinSupportResistance = (
+        lastCandle.low >= Math.min(potentialSupport, potentialResistance) &&
+        lastCandle.high <= Math.max(potentialSupport, potentialResistance)
+    );
+    const isPreviousWithinSupportResistance = (
+        previousCandle.low >= Math.min(potentialSupport, potentialResistance) &&
+        previousCandle.high <= Math.max(potentialSupport, potentialResistance)
+    );
+    const isTwoCandlesAgoOutsideSupportResistance = (
+        twoCandlesAgo.low < Math.min(potentialSupport, potentialResistance) ||
+        twoCandlesAgo.high > Math.max(potentialSupport, potentialResistance)
+    );
+    const isThreeCandlesAgoOutsideSupportResistance = (
+        threeCandlesAgo.low < Math.min(potentialSupport, potentialResistance) ||
+        threeCandlesAgo.high > Math.max(potentialSupport, potentialResistance)
+    );
+    return (
+        isWithinSupportResistance &&
+        isPreviousWithinSupportResistance &&
+        isTwoCandlesAgoOutsideSupportResistance &&
+        isThreeCandlesAgoOutsideSupportResistance
+    );
+}
+function isBullishWedge(data) {
+    if (data.length < 5) {
+        return false;
+    }
+    const firstHalf = data.slice(0, Math.floor(data.length / 2));
+    const averageLowFirstHalf = firstHalf.reduce((sum, candle) => sum + candle.low, 0) / firstHalf.length;
+    const secondHalf = data.slice(Math.floor(data.length / 2));
+    const averageLowSecondHalf = secondHalf.reduce((sum, candle) => sum + candle.low, 0) / secondHalf.length;
+    return averageLowSecondHalf > averageLowFirstHalf;
+}
+function isBullishFlag(data) {
+    if (data.length < 3) {
+        return false;
+    }
+    const potentialFlagPole = data[data.length - 1].high - data[data.length - 3].low;
+    const lastCandle = data[data.length - 1];
+    const previousCandle = data[data.length - 2];
+    const twoCandlesAgo = data[data.length - 3];
+    const isFlagPole = lastCandle.high - twoCandlesAgo.low > 2 * potentialFlagPole;
+    const isFlagLinesParallel = (
+        Math.abs(lastCandle.close - previousCandle.close) < 0.02 * potentialFlagPole &&
+        Math.abs(previousCandle.close - twoCandlesAgo.close) < 0.02 * potentialFlagPole
+    );
+    return isFlagPole && isFlagLinesParallel;
+}
+function isCupAndHandle(data) {
+    if (data.length < 7) {
+        return false;
+    }
+    const potentialCup = data[data.length - 1].high - data[data.length - 4].low;
+    const lastCandle = data[data.length - 1];
+    const previousCandle = data[data.length - 2];
+    const twoCandlesAgo = data[data.length - 3];
+    const threeCandlesAgo = data[data.length - 4];
+    const fourCandlesAgo = data[data.length - 5];
+    const fiveCandlesAgo = data[data.length - 6];
+    const sixCandlesAgo = data[data.length - 7];
+    const isCup =
+        lastCandle.low >= sixCandlesAgo.low &&
+        lastCandle.low >= fiveCandlesAgo.low &&
+        lastCandle.low >= fourCandlesAgo.low &&
+        previousCandle.low >= sixCandlesAgo.low &&
+        previousCandle.low >= fiveCandlesAgo.low &&
+        previousCandle.low >= fourCandlesAgo.low &&
+        previousCandle.high <= sixCandlesAgo.high &&
+        previousCandle.high <= fiveCandlesAgo.high &&
+        previousCandle.high <= fourCandlesAgo.high &&
+        twoCandlesAgo.low >= sixCandlesAgo.low &&
+        twoCandlesAgo.low >= fiveCandlesAgo.low &&
+        twoCandlesAgo.low >= fourCandlesAgo.low &&
+        twoCandlesAgo.high <= sixCandlesAgo.high &&
+        twoCandlesAgo.high <= fiveCandlesAgo.high &&
+        twoCandlesAgo.high <= fourCandlesAgo.high;
+    const isHandle =
+        data[data.length - 4].high >= lastCandle.low &&
+        data[data.length - 5].high >= lastCandle.low &&
+        data[data.length - 6].high >= lastCandle.low &&
+        data[data.length - 7].high >= lastCandle.low;
+
+    return isCup && isHandle;
+}
+/////////////////////////////////////////////////////////////
+function detectBullishPatterns(data) {
+    const lastCandle = data[data.length - 1];
+    const previousCandle = data[data.length - 2];
+    const twoCandlesAgo = data[data.length - 3];
+
+
+    document.getElementById("Tweezer-Bottom").innerHTML = ''
+    const lastTwoCandles = data.slice(-2);
+    if (isTweezerBottom(lastTwoCandles)) {
+        document.getElementById("Tweezer-Bottom").innerHTML = 'Tweezer Bottom<br><img src="img/tweezerbottom.png" width="30%">'
+    }
+    document.getElementById("Three-Outside").innerHTML = ''
+    if (isThreeOutsideUp(data.slice(-3))) {
+        document.getElementById("Three-Outside").innerHTML = 'Three Outside<br><img src="img/threeoutside.png" width="30%">'
+    }
+    document.getElementById("On-Neck").innerHTML = ''
+    if (isOnNeckPattern(lastTwoCandles)) {
+        document.getElementById("On-Neck").innerHTML = 'On Neck<br><img src="img/onneck.png" width="30%">'
+    }
+    document.getElementById("Bullish-Spinning").innerHTML = ''
+    if (isBullishSpinningTop(lastCandle)) {
+        document.getElementById("Bullish-Spinning").innerHTML = 'Bullish Spinning<br><img src="img/bullishspinning.png" width="30%">'
+    }
+    document.getElementById("Tri-Star").innerHTML = ''
+    if (isTriStar(data.slice(-3))) {
+        document.getElementById("Tri-Star").innerHTML = 'Tri Star<br><img src="img/tristar.png" width="30%">'
+    }
+    document.getElementById("Bullish-Pin").innerHTML = ''
+    if (isBullishPinBar(lastCandle)) {
+        document.getElementById("Bullish-Pin").innerHTML = 'Bullish Pin<br><img src="img/bullishpin.png" width="30%">'
+    }
+    document.getElementById("Bullish-Reversal-Bar").innerHTML = ''
+    if (isBullishReversalBar(lastCandle)) {
+    document.getElementById("Bullish-Reversal-Bar").innerHTML = 'Bullish Reversal<br><img src="img/bullishreversalbar.png" width="30%">'
+    }
+    document.getElementById("Key-Reversal-Bar-pattern").innerHTML = ''
+    if (isKeyReversalBar(lastCandle, previousCandle)) {
+        document.getElementById("Key-Reversal-Bar-pattern").innerHTML = 'Key Reversal<br><img src="img/keyreversal.png" width="30%">'
+    }
+    document.getElementById("Bullish-Exhaustion-Bar").innerHTML = ''
+    if (isBullishExhaustionBar(lastCandle, previousCandle)) {
+        document.getElementById("Bullish-Exhaustion-Bar").innerHTML = 'Bullish Exhaustion<br><img src="img/bullishexhaustionbar.png" width="30%">'
+    }
+    document.getElementById("Bullish-Two-Bar-Reversal").innerHTML = ''
+    if (isBullishTwoBarReversal(lastCandle, previousCandle)) {
+        document.getElementById("Bullish-Two-Bar-Reversal").innerHTML = 'Bullish Two-Bar Reversal<br><img src="img/bullishtwobarreversal.png" width="30%">'
+    }
+    document.getElementById("Bullish-Three-Bar-Reversal").innerHTML = ''
+    if (isBullishThreeBarReversal(lastCandle, previousCandle, twoCandlesAgo)) {
+        document.getElementById("Bullish-Three-Bar-Reversal").innerHTML = 'Bullish Three-Bar Reversal<br><img src="img/bullishthreebarreversal.png" width="30%">'
+    }
+    document.getElementById("Bullish-Three-Bar-Pullback").innerHTML = ''
+    if (isBullishThreeBarPullback(lastCandle, previousCandle, twoCandlesAgo)) {
+        document.getElementById("Bullish-Three-Bar-Pullback").innerHTML = 'Bullish Three-Bar Pullback<br><img src="img/bullishthreebarpullback.png" width="30%">'
+    }
+    document.getElementById("Inside-Bar").innerHTML = ''
+    if (isInsideBar(lastCandle, previousCandle)) {
+        document.getElementById("Inside-Bar").innerHTML = 'Inside Bar<br><img src="img/insidebar.png" width="30%">'
+    }
+    document.getElementById("White-Marubozu").innerHTML = ''
+    if (isWhiteMarubozu(lastCandle)) {
+        document.getElementById("White-Marubozu").innerHTML = 'Bullish Marubozu<br><img src="img/whitemarubozu.png" width="30%">'
+    }
+    document.getElementById("Bullish-Harami").innerHTML = ''
+    if (isBullishHarami(lastCandle, previousCandle)) {
+        document.getElementById("Bullish-Harami").innerHTML = 'Bullish Harami<br><img src="img/bullishharami.png" width="30%">'
+    }
+    document.getElementById("Bullish-Engulfing").innerHTML = ''
+    if (isBullishEngulfing(lastCandle, previousCandle)) {
+        document.getElementById("Bullish-Engulfing").innerHTML = 'Bullish Engulfing<br><img src="img/bullishengulfing.png" width="30%">'
+    }
+    document.getElementById("Piercing-Line").innerHTML = ''
+    if (isPiercingLine(lastCandle, previousCandle)) {
+        document.getElementById("Piercing-Line").innerHTML = 'Piercing Line<br><img src="img/piercingline.png" width="30%">'
+    }
+    document.getElementById("Hammer-pattern").innerHTML = ''
+    if (isHammer(lastCandle)) {
+        document.getElementById("Hammer-pattern").innerHTML = 'Hammer<br><img src="img/hammer.png" width="30%">'
+    }
+    document.getElementById("Inverted-Hammer").innerHTML = ''
+    if (isInvertedHammer(lastCandle)) {
+        document.getElementById("Inverted-Hammer").innerHTML = 'Inverted Hammer<br><img src="img/invertedhammer.png" width="30%">'
+    }
+    document.getElementById("Morning-Star").innerHTML = ''
+    if (isMorningStar(lastCandle, previousCandle, twoCandlesAgo)) {
+        document.getElementById("Morning-Star").innerHTML = 'Morning Star<br><img src="img/morningstar.png" width="30%">'
+    }
+    document.getElementById("Three-White").innerHTML = ''
+    const lastThreeCandles = data.slice(-3);
+    if (isThreeWhiteSoldiers(lastThreeCandles)) {
+        document.getElementById("Three-White").innerHTML = 'Three White Soldiers<br><img src="img/threewhite.png" width="30%">'
+    }
+    document.getElementById("Bullish-Head-and-Shoulders").innerHTML = ''
+    if (isBullishHeadAndShoulders(data)) {
+        document.getElementById("Bullish-Head-and-Shoulders").innerHTML = 'Bullish Head & Shoulders<br><img src="img/bullishheadandshoulders.png" width="30%">'
+    }
+    document.getElementById("Double-Bottom").innerHTML = ''
+    if (isDoubleBottom(data)) {
+        document.getElementById("Double-Bottom").innerHTML = 'Double Bottom<br><img src="img/doublebottom.png" width="30%">'
+    }
+    document.getElementById("Rounding-Bottom").innerHTML = ''
+    if (isRoundingBottom(data)) {
+        document.getElementById("Rounding-Bottom").innerHTML = 'Rounding Bottom<br><img src="img/roundingbottom.png" width="30%">'
+    }
+    document.getElementById("Bullish-Rectangle").innerHTML = ''
+    if (isBullishRectangle(data)) {
+        document.getElementById("Bullish-Rectangle").innerHTML = 'Bullish Rectangle<br><img src="img/bullishrectangle.png" width="30%">'
+    }
+    document.getElementById("Bullish-Wedge").innerHTML = ''
+    if (isBullishWedge(data)) {
+        document.getElementById("Bullish-Wedge").innerHTML = 'Bullish Wedge<br><img src="img/bullishwedge.png" width="30%">'
+    }
+    document.getElementById("Bullish-Flag").innerHTML = ''
+    if (isBullishFlag(data)) {
+        document.getElementById("Bullish-Flag").innerHTML = 'Bullish Flag<br><img src="img/bullishflag.png" width="30%">'
+    }
+    document.getElementById("Cup-and-Handle").innerHTML = ''
+    if (isCupAndHandle(data)) {
+        document.getElementById("Cup-and-Handle").innerHTML = 'Cup & Handle<br><img src="img/cupandhandle.png" width="30%">'
+    }
+    document.getElementById("Triple-Bottom").innerHTML = '';
+    if (isTripleBottom(data)) {
+        document.getElementById("Triple-Bottom").innerHTML = 'Triple Bottom<br><img src="img/triplebottom.png" width="30%">'
+    }
+
+}
+    fetchDataAndRefreshChart();
+  
+    setInterval(fetchDataAndRefreshChart, 30000);
+  </script>
+
+
+</body>
+</html>
