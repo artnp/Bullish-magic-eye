@@ -39,19 +39,20 @@ body {
   background-color: #fff;
   color: #000;
 }
-    #master {
+    #master, #container, textarea {
     position: fixed;
+    cursor: move;
+    }
+    #master {
     top: 50%;
-    transform: translateY(-50%);
+    left: 50%;
     transform: translate(-50%, -50%);
     }
     #container {
-    position: fixed;
-    border: 1px solid SteelBlue;
+    border: 5px solid red;
     border-radius: 8px;
     top: 51%;
-    transform: translateY(-50%);
-    left: -40;
+    left: -40px;
     width: 650px;
     height: 340px;
     overflow: hidden;
@@ -71,9 +72,8 @@ body {
         resize: none;
     }
     textarea {
-            position: fixed;
             top: 5%;
-            right: 100;
+            right: 100px;
             width: 27%;
             height: 90%;
             background-color: #000;
@@ -83,7 +83,6 @@ body {
             border: 1px solid grey;
             border-radius: 8px;
             box-sizing: border-box;
-            /* overflow: hidden; */
         }
         table {
   width: 100%;
@@ -146,7 +145,37 @@ td {
 
 </center>
 <script>
- 
+ function makeDraggable(element) {
+    let isMouseDown = false, mouseX, mouseY, elementX, elementY;
+
+    element.addEventListener('mousedown', function(e) {
+      isMouseDown = true;
+      mouseX = e.clientX;
+      mouseY = e.clientY;
+      elementX = parseInt(window.getComputedStyle(element).left, 10);
+      elementY = parseInt(window.getComputedStyle(element).top, 10);
+      element.style.zIndex = 1000; // Bring to top
+    });
+
+    document.addEventListener('mousemove', function(e) {
+      if (isMouseDown) {
+        let dx = e.clientX - mouseX;
+        let dy = e.clientY - mouseY;
+        element.style.left = elementX + dx + 'px';
+        element.style.top = elementY + dy + 'px';
+      }
+    });
+
+    document.addEventListener('mouseup', function() {
+      isMouseDown = false;
+    });
+  }
+
+  // Apply the makeDraggable function to the elements
+  ['master', 'container', 'news'].forEach(id => {
+    let el = document.getElementById(id);
+    makeDraggable(el);
+  });
   
 
   </script>
